@@ -1,7 +1,10 @@
+package welch;
+
+import welch.Queue;
 import java.lang.Math;
 import org.jtransforms.fft.*;
 
-class WelchAccumulator extends Thread {
+class WelchComputerThread extends Thread {
 	private int segLength;
 	private int frameSize;
 	private double[] window;
@@ -32,7 +35,7 @@ class WelchAccumulator extends Thread {
 
 	// Sets the scale for computing the periodogram.
 	private void setPeriodogramScale() {
-		double sum;
+		double sum = 0;
 
 		for (int i = 0; i < segLength; i++)
 			sum += Math.pow(this.window[i], 2);
@@ -41,7 +44,8 @@ class WelchAccumulator extends Thread {
 	}
 
 	private void createSignal(double[] signal, int shift) {
-		double mean;
+		double mean = 0;
+
 		for (int i = 0; i < this.segLength; i++)
 			mean += this.data[shift][i];
 
@@ -60,7 +64,7 @@ class WelchAccumulator extends Thread {
 	// 3) Scaling by this.scale
 	private void realSpectrumToPeriodogram(double[] spectrum, double[] periodogram) {
 		for (int i = 0; i < this.resultLength; i ++) {
-			if (this.segLength % 2) {
+			if (this.segLength % 2 == 1) {
 				// If the signal length(n) was odd, spectrum is in the following format:
 				// a[2i] = Re[i], 0<=k<(n+1)/2
 				// a[2i+1] = Im[i], 0<k<(n-1)/2
@@ -111,22 +115,22 @@ class WelchAccumulator extends Thread {
 			realSpectrumToPeriodogram(signal, periodogram);
 
 			for (int j = 0; j < this.resultLength; j++)
-				this.result[i] += periodogram[i] / this.frameSize;
+				this.result[j] += periodogram[j] / this.frameSize;
 		}
 	}
 
 	public void run() {
-		while (!Queues.done) {
+		while (!Queue.done) {
 			try {
-				this.data = Queues.getFromDataQueue();
+				this.data = Queue.getFromDataQueue();
 			} catch (InterruptedException e) {
 				break;
 			}
 
 			computeSegment();
-
+			
 			try {
-				Queues.insertIntoResultQueue(this.result);
+				Queue.insertIntoResultQueue(this.result);
 			} catch (InterruptedException e) {
 				break;
 			}
