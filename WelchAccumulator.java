@@ -72,7 +72,7 @@ class WelchAccumulator {
 		this.position = (this.position + 1) % this.segLength;
 		this.remaining -= 1;
 		
-		if (this.remaining <= 0) {
+		if (this.remaining <= 0) {					
 			addDataToQueue();
 			this.remaining += this.segLength - this.segOverlap;
 		}
