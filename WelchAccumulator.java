@@ -1,5 +1,4 @@
 import java.lang.Math;
-import org.jtransforms.fft.*;
 
 class WelchAccumulator {
 	private int segLength;
