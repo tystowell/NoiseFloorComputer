@@ -64,6 +64,7 @@ class WelchComputerThread extends Thread {
 	// 3) Scaling by this.scale
 	private void realSpectrumToPeriodogram(double[] spectrum, double[] periodogram) {
 		for (int i = 0; i < this.resultLength; i ++) {
+			periodogram[i] = 0;
 			if (this.segLength % 2 == 1) {
 				// If the signal length(n) was odd, spectrum is in the following format:
 				// a[2i] = Re[i], 0<=k<(n+1)/2
@@ -126,7 +127,7 @@ class WelchComputerThread extends Thread {
 			} catch (InterruptedException e) {
 				break;
 			}
-
+			
 			computeSegment();
 			
 			try {
