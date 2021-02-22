@@ -44,29 +44,30 @@ class WelchAccumulator {
 		ct.start();
 	}
 
-	public void close() {
-		Queue.done = true;
-		addDataToQueue(); // Push remaining data to ensure Computer Thread isn't stuck blocking
-	}
-
 	private void addDataToQueue() {
 		double[][] flattenedData = new double[this.frameSize][this.segLength];
 		for (int i = 0; i < this.frameSize; i++)
 			for (int j = 0; j < this.segLength; j++)
 				flattenedData[i][j] = this.data[i][(this.position + j) % this.segLength];
 		
+		if (Queue.done && !Queue.resultQueueEmpty())
+			return;
+		
 		try {
 			Queue.insertIntoDataQueue(flattenedData);
 		} catch(InterruptedException e) {
-			System.out.println("uh oh");
+			return;
 		}
 	}
 
 	private void setResultFromQueue() {
+		if (Queue.done && !Queue.resultQueueEmpty())
+			return;
+		
 		try {
 			this.result = Queue.getFromResultQueue();
 		} catch(InterruptedException e) {
-			System.out.println("uh oh");
+			return;
 		}
 	}
 
@@ -97,8 +98,15 @@ class WelchAccumulator {
 	
 	public double[] getResult() {
 		if (!resultAvailable()) return null;
-		
+				
 		setResultFromQueue();
+		
 		return this.result;
 	}
+	
+	public void close() {
+		addDataToQueue(); // Push remaining data to ensure Computer Thread isn't stuck blocking
+		Queue.done = true;
+	}
 }
+
