@@ -50,7 +50,7 @@ class WelchAccumulator {
 			for (int j = 0; j < this.segLength; j++)
 				flattenedData[i][j] = this.data[i][(this.position + j) % this.segLength];
 		
-		if (Queue.done && !Queue.resultQueueEmpty())
+		if (Queue.done && !Queue.dataQueueEmpty())
 			return;
 		
 		try {
