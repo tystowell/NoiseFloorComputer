@@ -139,7 +139,7 @@ class WelchComputerThread extends Thread {
 	}
 	
 	private void setDataFromQueue() {
-		if (Queue.done && Queue.resultQueueEmpty())
+		if (Queue.done && Queue.dataQueueEmpty())
 			return;
 		
 		try {
