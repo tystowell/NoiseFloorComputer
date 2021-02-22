@@ -126,22 +126,36 @@ class WelchComputerThread extends Thread {
 				this.result[j] += periodogram[j] / this.frameSize;
 		}
 	}
+	
+	private void addResultToQueue() {
+		if (Queue.done && !Queue.resultQueueEmpty())
+			return;
+		
+		try {
+			Queue.insertIntoResultQueue(this.result);
+		} catch (InterruptedException e) {
+			return;
+		}
+	}
+	
+	private void setDataFromQueue() {
+		if (Queue.done && Queue.resultQueueEmpty())
+			return;
+		
+		try {
+			this.data = Queue.getFromDataQueue();
+		} catch (InterruptedException e) {
+			return;
+		}
+	}
 
 	public void run() {
 		while (!Queue.done) {
-			try {
-				this.data = Queue.getFromDataQueue();
-			} catch (InterruptedException e) {
-				break;
-			}
+			setDataFromQueue();
 			
 			computeSegment();
 			
-			try {
-				Queue.insertIntoResultQueue(this.result);
-			} catch (InterruptedException e) {
-				break;
-			}
+			addResultToQueue();
 		}
 	}
 }
