@@ -21,7 +21,14 @@ class WelchComputerThread extends Thread {
 	public WelchComputerThread(int segLength, int frameSize, double[] window) {
 		this.segLength = segLength;
 		this.frameSize = frameSize;
-		this.window = window; //TODO: Add check to verify window has length of segLength
+		
+		if (window != null && window.length == segLength) {
+			this.window = window;
+	    } else {
+	    	this.window = new double[segLength];
+	    	for (int i = 0; i < segLength; i++)
+	    		this.window[i] = 1; // If window is null or incorrect length, don't use a window
+	    }
 
 		this.resultLength = (int) (this.segLength / 2 + 1);
 		setPeriodogramScale();
