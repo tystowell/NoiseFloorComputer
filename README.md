@@ -1,1 +1,3 @@
 # WelchAccumulator
+
+TODO: Finish README
