@@ -61,7 +61,7 @@ class WelchAccumulator {
 	}
 
 	private void setResultFromQueue() {
-		if (Queue.done && !Queue.resultQueueEmpty())
+		if (Queue.done && Queue.resultQueueEmpty())
 			return;
 		
 		try {
