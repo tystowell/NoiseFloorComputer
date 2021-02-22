@@ -16,9 +16,18 @@ class WelchAccumulator {
 
 	public double[] result;
 
-	private WelchComputerThread wct;
+	private WelchComputerThread ct;
 
-	public WelchAccumulator(int segLength, int segOverlap, int frameSize, double[] window) {
+	public WelchAccumulator(int segLength, int segOverlap, int frameSize, double[] window) throws IllegalArgumentException{
+		if (segLength <= 1)
+			throw new IllegalArgumentException("ERROR: segLength must be greater than 1");
+
+		if (segOverlap >= segLength || segOverlap < 0)
+			segOverlap = 0;
+		
+		if (frameSize <= 0)
+			throw new IllegalArgumentException("ERROR: frameSize must be greater than 0");
+		
 		this.segLength = segLength;
 		this.segOverlap = segOverlap;
 		this.frameSize = frameSize;
@@ -31,12 +40,13 @@ class WelchAccumulator {
 
 		this.result = new double[this.resultLength];
 
-		wct = new WelchComputerThread(this.segLength, this.frameSize, window);
-		wct.start();
+		ct = new WelchComputerThread(this.segLength, this.frameSize, window);
+		ct.start();
 	}
 
 	public void close() {
 		Queue.done = true;
+		addDataToQueue(); // Push remaining data to ensure Computer Thread isn't stuck blocking
 	}
 
 	private void addDataToQueue() {
@@ -52,7 +62,7 @@ class WelchAccumulator {
 		}
 	}
 
-	private void getResultFromQueue() {
+	private void setResultFromQueue() {
 		try {
 			this.result = Queue.getFromResultQueue();
 		} catch(InterruptedException e) {
@@ -72,9 +82,10 @@ class WelchAccumulator {
 		this.position = (this.position + 1) % this.segLength;
 		this.remaining -= 1;
 		
-		if (this.remaining <= 0) {					
+		if (this.remaining <= 0) {
 			addDataToQueue();
 			this.remaining += this.segLength - this.segOverlap;
+			return 1;
 		}
 
 		return 0;
@@ -87,7 +98,7 @@ class WelchAccumulator {
 	public double[] getResult() {
 		if (!resultAvailable()) return null;
 		
-		getResultFromQueue();
+		setResultFromQueue();
 		return this.result;
 	}
 }
