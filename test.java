@@ -5,9 +5,9 @@ import java.lang.Math;
 
 class test {
 	public static void main(String[] args){
-		int segLength  = 8;
-		int segOverlap = 2;
-		int frameSize = 3;
+		int segLength  = 128;
+		int segOverlap = 64;
+		int frameSize = 100;
 		double[] window = new double[segLength];
 
 		for (int i = 0; i < segLength; i++)
@@ -18,16 +18,15 @@ class test {
 		double[] data = new double[frameSize];
 		double[] result = new double[segLength / 2 + 1];
 
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < 256; i++) {
 			for (int n = 0; n < frameSize; n++)
-				data[n] = i + n;
+				data[n] = Math.random() * 30;
 			
 			w.addFrame(data);
-
+			
 			if (w.resultAvailable())
 				result = w.getResult();
 		}
-
-		w.close();		
+		w.close();
 	}
 }
