@@ -24,10 +24,14 @@ class WelchComputerThread extends Thread {
 		
 		if (window != null && window.length == segLength) {
 			this.window = window;
+	    } else if (window == null){
+	    	this.window = new double[segLength];
+	    	for (int i = 0; i < segLength; i++)
+	    		this.window[i] = 0.54 - 0.46 * (double) Math.cos(2 * Math.PI * i / (segLength - 1)); // If window is null, use the hamming window
 	    } else {
 	    	this.window = new double[segLength];
 	    	for (int i = 0; i < segLength; i++)
-	    		this.window[i] = 1; // If window is null or incorrect length, don't use a window
+	    		this.window[i] = 1; // If window is the incorrect length, don't use a window
 	    }
 		
 		this.resultLength = (int) (this.segLength / 2 + 1);
@@ -127,12 +131,12 @@ class WelchComputerThread extends Thread {
 		}
 	}
 	
-	private boolean addPSDToQueue() {
+	private boolean addPeriodogramToQueue() {
 		if (Queue.done)
 			return false;
 		
 		try {
-			return Queue.insertIntoPSDQueue(this.result);
+			return Queue.insertIntoPeriodogramQueue(this.result);
 		} catch (InterruptedException e) {
 			Queue.done = true;
 			return false;
@@ -163,7 +167,7 @@ class WelchComputerThread extends Thread {
 				{
 					computeSegment();
 					
-					addPSDToQueue();
+					addPeriodogramToQueue();
 				}
 			}
 	}
