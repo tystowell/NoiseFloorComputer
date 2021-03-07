@@ -5,12 +5,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 public class Queue {
-	public final static long TIMEOUT = 2000;
+	public final static long TIMEOUT = 500;
 	
 	public static boolean done = false;
 
 	public static BlockingQueue<double[][]> dataQueue = new ArrayBlockingQueue<>(1);
-	public static BlockingQueue<double[]> PSDQueue = new ArrayBlockingQueue<>(1);
 	public static BlockingQueue<Double> resultQueue = new ArrayBlockingQueue<>(1);
 
 	public static boolean insertIntoDataQueue(double[][] x) throws InterruptedException {
@@ -25,18 +24,6 @@ public class Queue {
 		return dataQueue.isEmpty();
 	}
 
-	public static boolean insertIntoPeriodogramQueue(double[] x) throws InterruptedException {
-		return PSDQueue.offer(x, TIMEOUT, TimeUnit.MILLISECONDS);
-	}
-
-	public static double[] getFromPeriodogramQueue() throws InterruptedException {
-		return PSDQueue.poll(TIMEOUT, TimeUnit.MILLISECONDS);
-	}
-	
-	public static boolean periodogramQueueEmpty() {
-		return PSDQueue.isEmpty();
-	}
-	
 	public static boolean insertIntoResultQueue(Double x) throws InterruptedException {
 		return resultQueue.offer(x, TIMEOUT, TimeUnit.MILLISECONDS);
 	}
@@ -47,5 +34,10 @@ public class Queue {
 	
 	public static boolean resultQueueEmpty() {
 		return resultQueue.isEmpty();
+	}
+	
+	public static void emptyAllQueues() {
+		dataQueue.clear();
+		resultQueue.clear();
 	}
 }
