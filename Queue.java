@@ -25,15 +25,15 @@ public class Queue {
 		return dataQueue.isEmpty();
 	}
 
-	public static boolean insertIntoPSDQueue(double[] x) throws InterruptedException {
+	public static boolean insertIntoPeriodogramQueue(double[] x) throws InterruptedException {
 		return PSDQueue.offer(x, TIMEOUT, TimeUnit.MILLISECONDS);
 	}
 
-	public static double[] getFromPSDQueue() throws InterruptedException {
+	public static double[] getFromPeriodogramQueue() throws InterruptedException {
 		return PSDQueue.poll(TIMEOUT, TimeUnit.MILLISECONDS);
 	}
 	
-	public static boolean PSDQueueEmpty() {
+	public static boolean periodogramQueueEmpty() {
 		return PSDQueue.isEmpty();
 	}
 	
