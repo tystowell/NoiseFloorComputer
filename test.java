@@ -11,10 +11,10 @@ import java.nio.channels.FileChannel;
 class test {
 	// Reads a little endian binary file of floats into a 2746x2048 array
 	// (Written from python with "array.tofile(<path>)")
-	public static double[][] readData(String f) {		
+	public static double[][] readData(String path) {		
 		FileInputStream fis;
 		try {
-			fis = new FileInputStream(f);
+			fis = new FileInputStream(path);
 		} catch (FileNotFoundException e) {
 			return null;
 		}
@@ -55,7 +55,7 @@ class test {
 	}
 	
 	public static void main(String[] args){
-		String dataPath = "/path/to/binarydata.bin";
+		String dataPath = "/home/tylers/capstone/dataAnalysis/binarydata.bin";
 		int segLength  = 128;
 		int segOverlap = 64;
 		int frameSize = 2746;
@@ -68,9 +68,7 @@ class test {
 			System.out.println("Data error!");
 			return;
 		}
-		
-		System.out.println("Data: " + data[100][254]);
-		
+				
 		double result;
 		double[] frame = new double[frameSize];
 		
