@@ -55,7 +55,7 @@ class test {
 	}
 	
 	public static void main(String[] args){
-		String dataPath = "/home/tylers/capstone/java/eclipse/Welch/bin/welch/binarydata.bin";
+		String dataPath = "/path/to/binarydata.bin";
 		int segLength  = 128;
 		int segOverlap = 64;
 		int frameSize = 2746;
