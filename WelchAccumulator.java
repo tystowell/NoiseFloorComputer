@@ -8,15 +8,14 @@ class WelchAccumulator {
 	private int segOverlap;
 	private int frameSize;
 
-	private int resultLength;
-
 	private double[][] data;
 	private int position;
 	private int remaining;
 
-	public double[] result;
+	private double result;
 
 	private WelchComputerThread ct;
+	private WelchIntegratorThread i;
 
 	public WelchAccumulator(int segLength, int segOverlap, int frameSize, double[] window) throws IllegalArgumentException{
 		if (segLength <= 1)
@@ -32,43 +31,50 @@ class WelchAccumulator {
 		this.segOverlap = segOverlap;
 		this.frameSize = frameSize;
 
-		this.resultLength = (int) (this.segLength / 2 + 1);
-
 		this.data = new double[this.frameSize][this.segLength];
 		this.position = 0;
 		this.remaining = this.segLength;
 
-		this.result = new double[this.resultLength];
-
 		ct = new WelchComputerThread(this.segLength, this.frameSize, window);
 		ct.start();
+		
+		i = new WelchIntegratorThread(this.segLength);
 	}
 
-	private void addDataToQueue() {
+	private boolean addDataToQueue() {
 		double[][] flattenedData = new double[this.frameSize][this.segLength];
 		for (int i = 0; i < this.frameSize; i++)
 			for (int j = 0; j < this.segLength; j++)
 				flattenedData[i][j] = this.data[i][(this.position + j) % this.segLength];
 		
-		if (Queue.done && !Queue.dataQueueEmpty())
-			return;
+		if (Queue.done)
+			return false;
 		
 		try {
-			Queue.insertIntoDataQueue(flattenedData);
+			return Queue.insertIntoDataQueue(flattenedData);
 		} catch(InterruptedException e) {
-			return;
+			Queue.done = true;
+			return false;
 		}
 	}
 
-	private void setResultFromQueue() {
-		if (Queue.done && Queue.resultQueueEmpty())
-			return;
+	private boolean setResultFromQueue() {
+		if (Queue.done)
+			return false;
 		
 		try {
-			this.result = Queue.getFromResultQueue();
+			Double result = Queue.getFromResultQueue();
+			
+			if (result == null)
+				return false;
+			
+			this.result = result.doubleValue();
 		} catch(InterruptedException e) {
-			return;
+			Queue.done = true;
+			return false;
 		}
+		
+		return true;
 	}
 
 	// Takes a frame and adds it to this class's buffer.
@@ -96,16 +102,13 @@ class WelchAccumulator {
 		return !Queue.resultQueueEmpty();
 	}
 	
-	public double[] getResult() {
-		if (!resultAvailable()) return null;
-				
+	public double getResult() {
 		setResultFromQueue();
 		
 		return this.result;
 	}
 	
 	public void close() {
-		addDataToQueue(); // Push remaining data to ensure Computer Thread isn't stuck blocking
 		Queue.done = true;
 	}
 }
