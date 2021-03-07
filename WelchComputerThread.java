@@ -29,7 +29,7 @@ class WelchComputerThread extends Thread {
 	    	for (int i = 0; i < segLength; i++)
 	    		this.window[i] = 1; // If window is null or incorrect length, don't use a window
 	    }
-
+		
 		this.resultLength = (int) (this.segLength / 2 + 1);
 		setPeriodogramScale();
 
@@ -127,35 +127,44 @@ class WelchComputerThread extends Thread {
 		}
 	}
 	
-	private void addResultToQueue() {
-		if (Queue.done && !Queue.resultQueueEmpty())
-			return;
+	private boolean addPSDToQueue() {
+		if (Queue.done)
+			return false;
 		
 		try {
-			Queue.insertIntoResultQueue(this.result);
+			return Queue.insertIntoPSDQueue(this.result);
 		} catch (InterruptedException e) {
-			return;
+			Queue.done = true;
+			return false;
 		}
 	}
 	
-	private void setDataFromQueue() {
-		if (Queue.done && Queue.dataQueueEmpty())
-			return;
+	private boolean setDataFromQueue() {
+		if (Queue.done)
+			return false;
 		
 		try {
-			this.data = Queue.getFromDataQueue();
+			double[][] data = Queue.getFromDataQueue();
+			
+			if (data == null) return false;
+			
+			this.data = data;
 		} catch (InterruptedException e) {
-			return;
+			Queue.done = true;
+			return false;
 		}
+		
+		return true;
 	}
 
 	public void run() {
-		while (!Queue.done) {
-			setDataFromQueue();
-			
-			computeSegment();
-			
-			addResultToQueue();
-		}
+			while (!Queue.done) {
+				if (setDataFromQueue())
+				{
+					computeSegment();
+					
+					addPSDToQueue();
+				}
+			}
 	}
 }
