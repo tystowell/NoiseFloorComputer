@@ -38,7 +38,8 @@ class WelchAccumulator {
 		ct = new WelchComputerThread(this.segLength, this.frameSize, window);
 		ct.start();
 		
-		i = new WelchIntegratorThread(this.segLength);
+		i = new WelchIntegratorThread(this.segLength / 2 + 1);
+		i.start();
 	}
 
 	private boolean addDataToQueue() {
@@ -65,8 +66,7 @@ class WelchAccumulator {
 		try {
 			Double result = Queue.getFromResultQueue();
 			
-			if (result == null)
-				return false;
+			if (result == null) return false;
 			
 			this.result = result.doubleValue();
 		} catch(InterruptedException e) {
@@ -112,4 +112,5 @@ class WelchAccumulator {
 		Queue.done = true;
 	}
 }
+
 
