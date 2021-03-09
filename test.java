@@ -55,9 +55,9 @@ class test {
 	}
 	
 	public static void main(String[] args){
-		String dataPath = "/home/tylers/capstone/dataAnalysis/binarydata.bin";
-		int segLength  = 128;
-		int segOverlap = 64;
+		String dataPath = "/path/to/binarydata.bin";
+		int segLength  = 200;
+		int segOverlap = 100;
 		int frameSize = 2746;
 
 		WelchAccumulator w = new WelchAccumulator(segLength, segOverlap, frameSize, null);
@@ -68,14 +68,14 @@ class test {
 			System.out.println("Data error!");
 			return;
 		}
-				
+		
 		double result;
 		double[] frame = new double[frameSize];
 		
 		for (int i = 0; i < 2048; i++) {
 			for (int j = 0; j < frameSize; j++)
-				frame[i] = data[j][i];
-			
+				frame[j] = data[j][i];
+						
 			w.addFrame(frame);
 			
 			if (w.resultAvailable()) {
