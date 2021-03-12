@@ -6,7 +6,7 @@ import org.jtransforms.fft.*;
 
 class WelchComputerThread extends Thread {
 	private static final double NOISE_EST_PERCENT = 0.2;  // The percent of the periodogram (on the end) to use for the noise estimation.
-	private static final int SAMPLE_RATE = 1970; // The sample rate in Hz
+	private static final int SAMPLE_RATE = 1970; // The frame rate of the camera in Hz
 	private static final double SCALE_FACTOR = 225.438;
 	
 	private int segLength;
@@ -33,7 +33,7 @@ class WelchComputerThread extends Thread {
 	    } else if (window == null){
 	    	this.window = new double[segLength];
 	    	for (int i = 0; i < segLength; i++)
-	    		this.window[i] = 0.54 - 0.46 * (double) Math.cos(2 * Math.PI * i / (segLength - 1)); // If window is null, use the hamming window
+	    		this.window[i] = 0.54 - 0.46 * (double) Math.cos(2 * Math.PI * i / (segLength - 1)); // If null, use the hamming window
 	    } else {
 	    	this.window = new double[segLength];
 	    	for (int i = 0; i < segLength; i++)
@@ -50,7 +50,7 @@ class WelchComputerThread extends Thread {
 		this.periodogram = new double[this.fourierLength];
 	}
 
-	// Sets the scale for computing the periodogram.
+	// Sets this.scale for computing the periodogram later
 	private void setPeriodogramScale() {
 		double sum = 0;
 
@@ -60,6 +60,12 @@ class WelchComputerThread extends Thread {
 		this.scale = 1.0 / sum;
 	}
 
+	/*
+	 * Creates a signal by:
+	 * 1) Extracting "shift" from this.data
+	 * 2) Demeaning the signal
+	 * 3) Windowing the signal
+	 */
 	private void createSignal(double[] signal, int shift) {
 		double mean = 0;
 
@@ -70,15 +76,18 @@ class WelchComputerThread extends Thread {
 
 		for (int i = 0; i < this.segLength; i++) {
 			signal[i] = this.data[shift][i];
-			signal[i] -= mean;
+			signal[i] -= mean; //For some reason, this introduces numerical error when compared to scipy.signal.welch
 			signal[i] *= this.window[i];
 		}
 	}
 
-	// Converts a real spectrum from JTransforms to a periodogram by:
-	// 1) Finding the squared magnitude of each value of the spectrum
-	// 2) Scaling (most) values by 2 to conserve the energy
-	// 3) Scaling by this.scale
+	/* 
+	 * Converts a real spectrum from JTransforms to a periodogram by:
+	 * 1) Putting the results from JTransforms in order
+	 * 2) Finding the squared magnitude of each value of the spectrum
+	 * 3) Scaling (most) values by 2 to conserve the energy
+	 * 4) Scaling by this.scale
+	 */
 	private void realSpectrumToPeriodogram(double[] spectrum, double[] periodogram) {
 		for (int i = 0; i < this.fourierLength; i ++) {
 			periodogram[i] = 0;
@@ -118,7 +127,14 @@ class WelchComputerThread extends Thread {
 		}
 	}
 
-	// Computes the periodogram of the last segment and stores it in this.periodogram
+	/* 
+	 * Computes the periodogram of all shifts in the last segment by:
+	 * 1) Looping through every frame
+	 * 2) Creating a signal for each frame using createSignal()
+	 * 3) Taking the fourier transform of the signal
+	 * 4) Converting the fourier transform to a periodogram
+	 * 5) Taking the running average of those periodograms
+	 */
 	private void computePeriodogram() {
 		double[] signal = new double[this.segLength];
 		double[] periodogram = new double[this.fourierLength];
@@ -138,7 +154,13 @@ class WelchComputerThread extends Thread {
 		}
 	}
 	
-	private void computeNoiseFloor() {
+	/*
+	 * Uses the periodogram to compute the noise floor of the signal by:
+	 * 1) Looking at the last NOISE_EST_PERCENT percent of the periodogram
+	 * 2) Taking the average of those values
+	 * 3) Computing the result 
+	 */
+	private void computeNoise() {
 		int noiseEstimateLength = (int) (this.fourierLength * WelchComputerThread.NOISE_EST_PERCENT);
 		double noiseFloor = 0;
 		if (noiseEstimateLength >= 1) {
@@ -147,9 +169,11 @@ class WelchComputerThread extends Thread {
 			}
 			noiseFloor /= noiseEstimateLength;
 		}else {
+			// If the data is too short, and NOISE_EST_PERCENT returns less than one value, just use the last value
 			noiseFloor = this.periodogram[this.fourierLength];
 		}
-		this.result = WelchComputerThread.SCALE_FACTOR * noiseFloor * (WelchComputerThread.SAMPLE_RATE / 2);
+		System.out.println("noise: " + noiseFloor);
+		this.result = WelchComputerThread.SCALE_FACTOR * Math.sqrt(noiseFloor * (WelchComputerThread.SAMPLE_RATE / 2));
 	}
 	
 	private boolean addResultToQueue() {
@@ -188,7 +212,7 @@ class WelchComputerThread extends Thread {
 			{
 				computePeriodogram();
 				
-				computeNoiseFloor();
+				computeNoise();
 				
 				addResultToQueue();
 			}
