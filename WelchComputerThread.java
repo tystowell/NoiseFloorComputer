@@ -172,7 +172,6 @@ class WelchComputerThread extends Thread {
 			// If the data is too short, and NOISE_EST_PERCENT returns less than one value, just use the last value
 			noiseFloor = this.periodogram[this.fourierLength];
 		}
-		System.out.println("noise: " + noiseFloor);
 		this.result = WelchComputerThread.SCALE_FACTOR * Math.sqrt(noiseFloor * (WelchComputerThread.SAMPLE_RATE / 2));
 	}
 	
