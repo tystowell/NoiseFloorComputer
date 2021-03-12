@@ -19,7 +19,7 @@ class WelchComputerThread extends Thread {
 
 	private DoubleFFT_1D fft;
 
-	private int fourierLength;
+	private int spectrumLength;
 	public double[] periodogram;
 	
 	double result;
@@ -40,14 +40,14 @@ class WelchComputerThread extends Thread {
 	    		this.window[i] = 1; // If window is the incorrect length, don't use a window
 	    }
 		
-		this.fourierLength = (int) (this.segLength / 2 + 1);
+		this.spectrumLength = (int) (this.segLength / 2 + 1);
 		setPeriodogramScale();
 
 		this.data = new double[this.frameSize][this.segLength];
 
 		fft = new DoubleFFT_1D(this.segLength);
 
-		this.periodogram = new double[this.fourierLength];
+		this.periodogram = new double[this.spectrumLength];
 	}
 
 	// Sets this.scale for computing the periodogram later
@@ -89,7 +89,7 @@ class WelchComputerThread extends Thread {
 	 * 4) Scaling by this.scale
 	 */
 	private void realSpectrumToPeriodogram(double[] spectrum, double[] periodogram) {
-		for (int i = 0; i < this.fourierLength; i ++) {
+		for (int i = 0; i < this.spectrumLength; i ++) {
 			periodogram[i] = 0;
 			if (this.segLength % 2 == 1) {
 				// If the signal length(n) was odd, spectrum is in the following format:
@@ -99,7 +99,7 @@ class WelchComputerThread extends Thread {
 
 				periodogram[i] += Math.pow(spectrum[2*i], 2); // Re[i]
 
-				if (i == this.fourierLength - 1)
+				if (i == this.spectrumLength - 1)
 					periodogram[i] += Math.pow(spectrum[1], 2); // Im[(n-1)/2]
 				else if (i != 0)
 					periodogram[i] += Math.pow(spectrum[2*i+1], 2); // Im[i]
@@ -112,12 +112,12 @@ class WelchComputerThread extends Thread {
 				// a[2i+1] = Im[i], 0<k<n/2
 				// a[1] = Re[n/2]
 
-				if (i == this.fourierLength - 1)
+				if (i == this.spectrumLength - 1)
 					periodogram[i] += Math.pow(spectrum[1], 2); // Re[n/2]
 				else
 					periodogram[i] += Math.pow(spectrum[2*i], 2); // Re[i]
 
-				if (i > 0 && i < this.fourierLength - 1) {
+				if (i > 0 && i < this.spectrumLength - 1) {
 					periodogram[i] += Math.pow(spectrum[2*i+1], 2); // Im[i]
 					periodogram[i] *= 2; // Preserve energy in signal
 				}
@@ -137,9 +137,9 @@ class WelchComputerThread extends Thread {
 	 */
 	private void computePeriodogram() {
 		double[] signal = new double[this.segLength];
-		double[] periodogram = new double[this.fourierLength];
+		double[] periodogram = new double[this.spectrumLength];
 
-		for (int i = 0; i < this.fourierLength; i++) {
+		for (int i = 0; i < this.spectrumLength; i++) {
 			this.periodogram[i] = 0;
 		}
 
@@ -149,7 +149,7 @@ class WelchComputerThread extends Thread {
 			fft.realForward(signal);
 			realSpectrumToPeriodogram(signal, periodogram);
 
-			for (int j = 0; j < this.fourierLength; j++)
+			for (int j = 0; j < this.spectrumLength; j++)
 				this.periodogram[j] += periodogram[j] / this.frameSize;
 		}
 	}
@@ -161,18 +161,19 @@ class WelchComputerThread extends Thread {
 	 * 3) Computing the result 
 	 */
 	private void computeNoise() {
-		int noiseEstimateLength = (int) (this.fourierLength * WelchComputerThread.NOISE_EST_PERCENT);
-		double noiseFloor = 0;
-		if (noiseEstimateLength >= 1) {
-			for (int i = this.fourierLength - 1; i >= this.fourierLength - noiseEstimateLength; i--) {
-				noiseFloor += this.periodogram[i];
+		int asymptoteLength = (int) (this.spectrumLength * WelchComputerThread.NOISE_EST_PERCENT);
+		double asymptote = 0;
+		if (asymptoteLength >= 1) {
+			for (int i = this.spectrumLength - 1; i >= this.spectrumLength - asymptoteLength; i--) {
+				asymptote += this.periodogram[i];
 			}
-			noiseFloor /= noiseEstimateLength;
+			asymptote /= asymptoteLength;
 		}else {
-			// If the data is too short, and NOISE_EST_PERCENT returns less than one value, just use the last value
-			noiseFloor = this.periodogram[this.fourierLength];
+			// If the data is too short, and NOISE_EST_PERCENT * length is less than one value, just use the last value
+			asymptote = this.periodogram[this.spectrumLength];
 		}
-		this.result = WelchComputerThread.SCALE_FACTOR * Math.sqrt(noiseFloor * (WelchComputerThread.SAMPLE_RATE / 2));
+		// Now that we've approximated the asymptote, use it to find the noiseFloor
+		this.result = WelchComputerThread.SCALE_FACTOR * Math.sqrt(asymptote * (WelchComputerThread.SAMPLE_RATE / 2));
 	}
 	
 	private boolean addResultToQueue() {
