@@ -4,10 +4,9 @@ import welch.Queue;
 import java.lang.Math;
 import org.jtransforms.fft.*;
 
-class WelchComputerThread extends Thread {
-	private static final double NOISE_EST_PERCENT = 0.2;  // The percent of the periodogram (on the end) to use for the noise estimation.
-	private static final int SAMPLE_RATE = 1970; // The frame rate of the camera in Hz
-	private static final double SCALE_FACTOR = 225.438;
+class NoiseComputer extends Thread {
+	private static final double NOISE_EST_PERCENT = 0.1;  // The percent of the periodogram (on the end) to use for the noise estimation.
+	private static final double SCALE_FACTOR = .221735;
 	
 	private int segLength;
 	private int frameSize;
@@ -24,7 +23,7 @@ class WelchComputerThread extends Thread {
 	
 	double result;
 
-	public WelchComputerThread(int segLength, int frameSize, double[] window) {
+	public NoiseComputer(int segLength, int frameSize, double[] window) {
 		this.segLength = segLength;
 		this.frameSize = frameSize;
 		
@@ -131,20 +130,19 @@ class WelchComputerThread extends Thread {
 	 * Computes the periodogram of all shifts in the last segment by:
 	 * 1) Looping through every frame
 	 * 2) Creating a signal for each frame using createSignal()
-	 * 3) Taking the fourier transform of the signal
-	 * 4) Converting the fourier transform to a periodogram
-	 * 5) Taking the running average of those periodograms
+	 * 3) Taking the fourier transform of the signal with realForward()
+	 * 4) Converting the fourier transform to a periodogram with realSpectrumToPeriodogram()
+	 * 5) Taking the average of all periodograms
 	 */
 	private void computePeriodogram() {
 		double[] signal = new double[this.segLength];
 		double[] periodogram = new double[this.spectrumLength];
 
-		for (int i = 0; i < this.spectrumLength; i++) {
+		for (int i = 0; i < this.spectrumLength; i++)
 			this.periodogram[i] = 0;
-		}
 
-		for (int i = 0; i < this.frameSize; i++) {
-			createSignal(signal, i);
+		for (int frame = 0; frame < this.frameSize; frame++) {
+			createSignal(signal, frame);
 
 			fft.realForward(signal);
 			realSpectrumToPeriodogram(signal, periodogram);
@@ -161,7 +159,7 @@ class WelchComputerThread extends Thread {
 	 * 3) Computing the result 
 	 */
 	private void computeNoise() {
-		int asymptoteLength = (int) (this.spectrumLength * WelchComputerThread.NOISE_EST_PERCENT);
+		int asymptoteLength = (int) (this.spectrumLength * NoiseComputer.NOISE_EST_PERCENT);
 		double asymptote = 0;
 		if (asymptoteLength >= 1) {
 			for (int i = this.spectrumLength - 1; i >= this.spectrumLength - asymptoteLength; i--) {
@@ -173,7 +171,7 @@ class WelchComputerThread extends Thread {
 			asymptote = this.periodogram[this.spectrumLength];
 		}
 		// Now that we've approximated the asymptote, use it to find the noiseFloor
-		this.result = WelchComputerThread.SCALE_FACTOR * Math.sqrt(asymptote * (WelchComputerThread.SAMPLE_RATE / 2));
+		this.result = 1 / NoiseComputer.SCALE_FACTOR * Math.sqrt(asymptote / 2);
 	}
 	
 	private boolean addResultToQueue() {
