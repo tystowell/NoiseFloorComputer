@@ -16,7 +16,7 @@ class SignalAccumulator {
 
 	private NoiseComputer ct;
 
-	public SignalAccumulator(int segLength, int segOverlap, int frameSize, double[] window) throws IllegalArgumentException{
+	public SignalAccumulator(int segLength, int segOverlap, int frameSize, double[] window, double noiseScale) throws IllegalArgumentException{
 		if (segLength <= 1)
 			throw new IllegalArgumentException("ERROR: segLength must be greater than 1");
 
@@ -36,7 +36,7 @@ class SignalAccumulator {
 		
 		Queue.emptyAllQueues();
 
-		ct = new NoiseComputer(this.segLength, this.frameSize, window);
+		ct = new NoiseComputer(this.segLength, this.frameSize, window, noiseScale);
 		ct.start();
 	}
 
@@ -112,5 +112,3 @@ class SignalAccumulator {
 		Queue.done = true;
 	}
 }
-
-
