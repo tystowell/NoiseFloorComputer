@@ -1,9 +1,9 @@
 package welch;
 
-import welch.WelchComputerThread;
+import welch.NoiseComputer;
 import welch.Queue;
 
-class WelchAccumulator {
+class SignalAccumulator {
 	private int segLength;
 	private int segOverlap;
 	private int frameSize;
@@ -14,10 +14,9 @@ class WelchAccumulator {
 
 	private double result;
 
-	private WelchComputerThread ct;
-	private WelchIntegratorThread i;
+	private NoiseComputer ct;
 
-	public WelchAccumulator(int segLength, int segOverlap, int frameSize, double[] window) throws IllegalArgumentException{
+	public SignalAccumulator(int segLength, int segOverlap, int frameSize, double[] window) throws IllegalArgumentException{
 		if (segLength <= 1)
 			throw new IllegalArgumentException("ERROR: segLength must be greater than 1");
 
@@ -34,12 +33,11 @@ class WelchAccumulator {
 		this.data = new double[this.frameSize][this.segLength];
 		this.position = 0;
 		this.remaining = this.segLength;
-
-		ct = new WelchComputerThread(this.segLength, this.frameSize, window);
-		ct.start();
 		
-		i = new WelchIntegratorThread(this.segLength / 2 + 1);
-		i.start();
+		Queue.emptyAllQueues();
+
+		ct = new NoiseComputer(this.segLength, this.frameSize, window);
+		ct.start();
 	}
 
 	private boolean addDataToQueue() {
@@ -77,9 +75,11 @@ class WelchAccumulator {
 		return true;
 	}
 
-	// Takes a frame and adds it to this class's buffer.
-	// Calls computeSegment() if needed.
-	public int addFrame(double[] frame) {
+	/* 
+	 * Takes a frame and adds it to this class's buffer.
+	 * If needed, adds a segment to queue so the ComputerThread can compute the noise floor.
+	 */
+	public int addFrame(double[] frame) {		
 		if (frame.length != this.frameSize)
 			return -1;
 
