@@ -1,6 +1,6 @@
 package welch;
 
-import welch.WelchAccumulator;
+import welch.SignalAccumulator;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -55,12 +55,12 @@ class test {
 	}
 	
 	public static void main(String[] args){
-		String dataPath = "/path/to/binarydata.bin";
-		int segLength  = 200;
-		int segOverlap = 100;
-		int frameSize = 2746;
+		String dataPath = "/home/tylers/capstone/dataAnalysis/binarydata.bin";
+		int segLength  = 100;
+		int segOverlap = 50;
+		int frameSize = 2746;//Was 2746
 
-		WelchAccumulator w = new WelchAccumulator(segLength, segOverlap, frameSize, null);
+		SignalAccumulator w = new SignalAccumulator(segLength, segOverlap, frameSize, null);
 
 		double[][] data = readData(dataPath);
 		
@@ -75,7 +75,7 @@ class test {
 		for (int i = 0; i < 2048; i++) {
 			for (int j = 0; j < frameSize; j++)
 				frame[j] = data[j][i];
-						
+			
 			w.addFrame(frame);
 			
 			if (w.resultAvailable()) {
