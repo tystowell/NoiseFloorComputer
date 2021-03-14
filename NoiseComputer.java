@@ -6,11 +6,11 @@ import org.jtransforms.fft.*;
 
 class NoiseComputer extends Thread {
 	private static final double NOISE_EST_PERCENT = 0.1;  // The percent of the periodogram (on the end) to use for the noise estimation.
-	private static final double SCALE_FACTOR = .221735;
 	
 	private int segLength;
 	private int frameSize;
 	private double[] window;
+	private double noiseScale;
 
 	private double scale;
 
@@ -23,7 +23,7 @@ class NoiseComputer extends Thread {
 	
 	double result;
 
-	public NoiseComputer(int segLength, int frameSize, double[] window) {
+	public NoiseComputer(int segLength, int frameSize, double[] window, double noiseScale) {
 		this.segLength = segLength;
 		this.frameSize = frameSize;
 		
@@ -38,6 +38,8 @@ class NoiseComputer extends Thread {
 	    	for (int i = 0; i < segLength; i++)
 	    		this.window[i] = 1; // If window is the incorrect length, don't use a window
 	    }
+		
+		this.noiseScale = noiseScale;
 		
 		this.spectrumLength = (int) (this.segLength / 2 + 1);
 		setPeriodogramScale();
@@ -171,7 +173,7 @@ class NoiseComputer extends Thread {
 			asymptote = this.periodogram[this.spectrumLength];
 		}
 		// Now that we've approximated the asymptote, use it to find the noiseFloor
-		this.result = 1 / NoiseComputer.SCALE_FACTOR * Math.sqrt(asymptote / 2);
+		this.result = this.noiseScale * Math.sqrt(asymptote / 2);
 	}
 	
 	private boolean addResultToQueue() {
