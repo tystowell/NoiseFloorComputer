@@ -59,8 +59,9 @@ class test {
 		int segLength  = 100;
 		int segOverlap = 50;
 		int frameSize = 2746;//Was 2746
+		double noiseScale = 4.509888;
 
-		SignalAccumulator w = new SignalAccumulator(segLength, segOverlap, frameSize, null);
+		SignalAccumulator w = new SignalAccumulator(segLength, segOverlap, frameSize, null, noiseScale);
 
 		double[][] data = readData(dataPath);
 		
