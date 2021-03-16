@@ -55,7 +55,7 @@ class test {
 	}
 	
 	public static void main(String[] args){
-		String dataPath = "/home/tylers/capstone/dataAnalysis/binarydata.bin";
+		String dataPath = "/PATH/TO/binarydata.bin";
 		int segLength  = 100;
 		int segOverlap = 50;
 		int frameSize = 2746;//Was 2746
