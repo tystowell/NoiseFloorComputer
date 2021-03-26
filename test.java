@@ -9,9 +9,9 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 
 class test {
-	// Reads a little endian binary file of floats into a 2746x2048 array
+	// Reads a little endian binary file of floats into a frameSizexlength array
 	// (Written from python with "array.tofile(<path>)")
-	public static double[][] readData(String path) {		
+	public static double[][] readData(String path, int frameSize, int length) {		
 		FileInputStream fis;
 		try {
 			fis = new FileInputStream(path);
@@ -30,7 +30,7 @@ class test {
 			return null;
 		}
 		
-		double[][] data = new double[2746][2048];
+		double[][] data = new double[frameSize][length];
 		int i = 0;
 		
 		while (bytesRead != -1) {
@@ -39,7 +39,7 @@ class test {
 			while (buffer.hasRemaining()) {
 				double d = (double) buffer.getFloat();
 				
-				data[i / 2048][i % 2048] = d;
+				data[i / length][i % length] = d;
 				i++;
 			}
 			
@@ -54,36 +54,53 @@ class test {
 		return data;
 	}
 	
+	// Create a frame of data (one new data point for each signal in the frame)
+	// as a ByteBuffer.
+	public static ByteBuffer createFrame(double[][] data, int frameSize, int frame)
+	{
+		ByteBuffer result = ByteBuffer.allocate(8 * frameSize);
+		for (int i = 0; i < frameSize; i++)
+			result.putDouble(data[i][frame]);
+		
+		return result.asReadOnlyBuffer();
+	}
+	
 	public static void main(String[] args){
-		String dataPath = "/PATH/TO/binarydata.bin";
+		String dataPath = "/path/to/binarydata.bin";
 		int segLength  = 100;
 		int segOverlap = 50;
-		int frameSize = 2746;//Was 2746
+		int frameSize = 2746;
+		int dataLength = 2048;
 		double noiseScale = 4.509888;
 
 		SignalAccumulator w = new SignalAccumulator(segLength, segOverlap, frameSize, null, noiseScale);
 
-		double[][] data = readData(dataPath);
+		// Starts the accumulator by creating a thread and setting up the queue.
+		w.start();
+
+		// Read the data from a file
+		double[][] data = readData(dataPath, frameSize, dataLength);
 		
-		if (data == null || data.length != frameSize) {
+		// Check to make sure the read was successful
+		if (data == null || data.length != frameSize || data[0].length != dataLength) {
 			System.out.println("Data error!");
 			return;
 		}
 		
-		double result;
-		double[] frame = new double[frameSize];
-		
-		for (int i = 0; i < 2048; i++) {
-			for (int j = 0; j < frameSize; j++)
-				frame[j] = data[j][i];
+		for (int i = 0; i < dataLength; i++) {
+			// Create a frame
+			ByteBuffer frame = createFrame(data, frameSize, i);
 			
+			// Add the frame
 			w.addFrame(frame);
 			
+			// Check if any results have become available since the last iteration
 			if (w.resultAvailable()) {
-				result = w.getResult();
+				double result = w.getResult();
 				System.out.println("Result: " + result);
 			}
 		}
-		w.close();
+		// Close the accumulator (ensures that the NoiseComputer thread ends)
+		w.stop();
 	}
 }
