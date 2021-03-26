@@ -4,6 +4,31 @@ import welch.Queue;
 import java.lang.Math;
 import org.jtransforms.fft.*;
 
+/**
+ * The thread created by SignalAccumulator. Waits for data to show
+ * up on a queue, then computes the noise floor and puts the result
+ * on a seperate queue.
+ * 
+ * NoiseComputer has the following parameters:
+ * 
+ * 1) segLength:
+ * The amount of frames to use for a noise floor calculation. A larger
+ * value leads to more accurate results, but returns less of them.
+ * 
+ * 2) frameSize:
+ * The number of signals it is working on.
+ * 
+ * 3) window:
+ * A windowing function to use while computing the fourier transform on a segment.
+ * Must be a double array of length segLength. If window is NULL, it will default
+ * to a hamming window, a window that is efficient at minimizing spectral leakage.
+ * 
+ * 4) noiseScale:
+ * Just scales the noiseFloor result before returning it.
+ * 
+ * @author Tyler Stowell
+ */
+
 class NoiseComputer extends Thread {
 	private static final double NOISE_EST_PERCENT = 0.1;  // The percent of the periodogram (on the end) to use for the noise estimation.
 	
@@ -27,17 +52,7 @@ class NoiseComputer extends Thread {
 		this.segLength = segLength;
 		this.frameSize = frameSize;
 		
-		if (window != null && window.length == segLength) {
-			this.window = window;
-	    } else if (window == null){
-	    	this.window = new double[segLength];
-	    	for (int i = 0; i < segLength; i++)
-	    		this.window[i] = 0.54 - 0.46 * (double) Math.cos(2 * Math.PI * i / (segLength - 1)); // If null, use the hamming window
-	    } else {
-	    	this.window = new double[segLength];
-	    	for (int i = 0; i < segLength; i++)
-	    		this.window[i] = 1; // If window is the incorrect length, don't use a window
-	    }
+		this.window = window;
 		
 		this.noiseScale = noiseScale;
 		
@@ -51,7 +66,11 @@ class NoiseComputer extends Thread {
 		this.periodogram = new double[this.spectrumLength];
 	}
 
-	// Sets this.scale for computing the periodogram later
+	/**
+	 * Sets the scale factor for creating a periodogram based on the window. Uses density scaling,
+	 * but does not include the sampling frequency in the calculation, since it ends up cancelling
+	 * out once the noise floor is computed.
+	 */
 	private void setPeriodogramScale() {
 		double sum = 0;
 
@@ -61,13 +80,19 @@ class NoiseComputer extends Thread {
 		this.scale = 1.0 / sum;
 	}
 
-	/*
+	/**
 	 * Creates a signal by:
 	 * 1) Extracting "shift" from this.data
 	 * 2) Demeaning the signal
 	 * 3) Windowing the signal
+	 * 
+	 * @param signal used to store the resulting signal (overwritten)
+	 * @param shift which signal to use (should be less than frameSize)
 	 */
 	private void createSignal(double[] signal, int shift) {
+		if (shift >= frameSize)
+			return;
+		
 		double mean = 0;
 
 		for (int i = 0; i < this.segLength; i++)
@@ -77,17 +102,20 @@ class NoiseComputer extends Thread {
 
 		for (int i = 0; i < this.segLength; i++) {
 			signal[i] = this.data[shift][i];
-			signal[i] -= mean; //For some reason, this introduces numerical error when compared to scipy.signal.welch
+			signal[i] -= mean;
 			signal[i] *= this.window[i];
 		}
 	}
 
-	/* 
+	/**
 	 * Converts a real spectrum from JTransforms to a periodogram by:
 	 * 1) Putting the results from JTransforms in order
 	 * 2) Finding the squared magnitude of each value of the spectrum
 	 * 3) Scaling (most) values by 2 to conserve the energy
 	 * 4) Scaling by this.scale
+	 * 
+	 * @param spectrum the spectrum to use to compute the periodogram
+	 * @param periodogram used to store the result (overwritten)
 	 */
 	private void realSpectrumToPeriodogram(double[] spectrum, double[] periodogram) {
 		for (int i = 0; i < this.spectrumLength; i ++) {
@@ -127,8 +155,8 @@ class NoiseComputer extends Thread {
 			periodogram[i] *= this.scale;
 		}
 	}
-
-	/* 
+	
+	/**
 	 * Computes the periodogram of all shifts in the last segment by:
 	 * 1) Looping through every frame
 	 * 2) Creating a signal for each frame using createSignal()
@@ -154,11 +182,11 @@ class NoiseComputer extends Thread {
 		}
 	}
 	
-	/*
+	/**
 	 * Uses the periodogram to compute the noise floor of the signal by:
 	 * 1) Looking at the last NOISE_EST_PERCENT percent of the periodogram
 	 * 2) Taking the average of those values
-	 * 3) Computing the result 
+	 * 3) Computing the result
 	 */
 	private void computeNoise() {
 		int asymptoteLength = (int) (this.spectrumLength * NoiseComputer.NOISE_EST_PERCENT);
@@ -172,10 +200,16 @@ class NoiseComputer extends Thread {
 			// If the data is too short, and NOISE_EST_PERCENT * length is less than one value, just use the last value
 			asymptote = this.periodogram[this.spectrumLength];
 		}
+		
 		// Now that we've approximated the asymptote, use it to find the noiseFloor
 		this.result = this.noiseScale * Math.sqrt(asymptote / 2);
 	}
 	
+	/**
+	 * Adds the newest result in this.result to the queue
+	 * 
+	 * @return true on success, false otherwise
+	 */
 	private boolean addResultToQueue() {
 		if (Queue.done)
 			return false;
@@ -188,6 +222,11 @@ class NoiseComputer extends Thread {
 		}
 	}
 	
+	/**
+	 * If there is new data on the queue, uses it to update this.data.
+	 * 
+	 * @return true on success, false otherwise
+	 */
 	private boolean setDataFromQueue() {
 		if (Queue.done)
 			return false;
@@ -206,8 +245,13 @@ class NoiseComputer extends Thread {
 		return true;
 	}
 
+	/**
+	 * Repeatedly attempts to get data from the queue, process it, and
+	 * put it on the result queue. If Queue.done is ever set to true or
+	 * the thread is interrupted, it quits.
+	 */
 	public void run() {
-		while (!Queue.done) {
+		while (!Queue.done && !Thread.interrupted()) {
 			if (setDataFromQueue())
 			{
 				computePeriodogram();
